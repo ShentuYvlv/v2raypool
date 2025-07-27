@@ -137,54 +137,83 @@ func StopSelectedNodes() []byte {
 	return result.Bytes()
 }
 
-// SetSystemProxy 设置系统代理
-func SetSystemProxy() []byte {
+// StartNode 启动单个节点
+func StartNode(remoteAddr string) []byte {
 	result := BaseResult{}
 	pp := vp.GetProxyPool()
 
-	// 获取当前激活的节点
-	activeNode := pp.GetActiveNode()
-	if activeNode.LocalPort == 0 {
-		result.Fail("没有激活的代理节点，请先激活一个节点", 400)
+	// 查找节点
+	var targetNode *vp.ProxyNode
+	for i, nd := range pp.GetNodes("") {
+		if nd.RemoteAddr == remoteAddr {
+			targetNode = &pp.GetNodes("")[i]
+			break
+		}
+	}
+
+	if targetNode == nil {
+		result.Fail("找不到指定的代理节点", 404)
 		return result.Bytes()
 	}
 
-	// 设置系统代理
-	proxyAddr := fmt.Sprintf("127.0.0.1:%d", activeNode.LocalPort)
-	err := vp.SetSystemProxy(proxyAddr, true)
+	if targetNode.IsRunning() {
+		result.Fail("节点已在运行中", 400)
+		return result.Bytes()
+	}
+
+	// 启动节点
+	err := pp.StartSingleNode(*targetNode)
 	if err != nil {
-		result.Fail(fmt.Sprintf("设置系统代理失败: %v", err), 500)
+		result.Fail(fmt.Sprintf("启动节点失败: %v", err), 500)
 		return result.Bytes()
 	}
 
-	result.Success(fmt.Sprintf("系统代理已设置为: %s", proxyAddr))
+	result.Success("节点启动成功")
 	return result.Bytes()
 }
 
-// UnsetSystemProxy 取消系统代理
-func UnsetSystemProxy() []byte {
+// StopNode 停止单个节点
+func StopNode(remoteAddr string) []byte {
 	result := BaseResult{}
+	pp := vp.GetProxyPool()
 
-	err := vp.SetSystemProxy("", false)
-	if err != nil {
-		result.Fail(fmt.Sprintf("取消系统代理失败: %v", err), 500)
+	// 查找节点
+	var targetNode *vp.ProxyNode
+	for i, nd := range pp.GetNodes("") {
+		if nd.RemoteAddr == remoteAddr {
+			targetNode = &pp.GetNodes("")[i]
+			break
+		}
+	}
+
+	if targetNode == nil {
+		result.Fail("找不到指定的代理节点", 404)
 		return result.Bytes()
 	}
 
-	result.Success("系统代理已取消")
-	return result.Bytes()
-}
-
-// GetSystemProxyStatus 获取系统代理状态
-func GetSystemProxyStatus() []byte {
-	status, proxyAddr := vp.GetSystemProxyStatus()
-	data := map[string]interface{}{
-		"enabled":    status,
-		"proxy_addr": proxyAddr,
+	if !targetNode.IsRunning() {
+		result.Fail("节点未在运行", 400)
+		return result.Bytes()
 	}
 
-	result := NewListData(data, 1)
-	result.Success("获取系统代理状态成功")
+	// 如果是当前激活的节点，先取消激活
+	activeNode := pp.GetActiveNode()
+	if activeNode.RemoteAddr == remoteAddr {
+		err := pp.UnActiveNode(*targetNode)
+		if err != nil {
+			result.Fail(fmt.Sprintf("取消激活节点失败: %v", err), 500)
+			return result.Bytes()
+		}
+	} else {
+		// 只停止节点，不取消激活
+		err := pp.StopSingleNode(*targetNode)
+		if err != nil {
+			result.Fail(fmt.Sprintf("停止节点失败: %v", err), 500)
+			return result.Bytes()
+		}
+	}
+
+	result.Success("节点停止成功")
 	return result.Bytes()
 }
 

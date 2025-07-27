@@ -53,16 +53,23 @@ func setRouter(s *web.EasyServer) {
 		ctx.Writer.Write(StopSelectedNodes())
 	})
 
-	s.AddHandler("POST", "/api/system-proxy/set", func(ctx web.Context) {
-		ctx.Writer.Write(SetSystemProxy())
+	// 单个节点运行控制
+	s.AddHandler("POST", "/api/node/start", func(ctx web.Context) {
+		dt := RequestActiveNode{}
+		err := getPostJson(ctx, &dt)
+		if err != nil {
+			return
+		}
+		ctx.Writer.Write(StartNode(dt.RemoteAddr))
 	})
 
-	s.AddHandler("POST", "/api/system-proxy/unset", func(ctx web.Context) {
-		ctx.Writer.Write(UnsetSystemProxy())
-	})
-
-	s.AddHandler("GET", "/api/system-proxy/status", func(ctx web.Context) {
-		ctx.Writer.Write(GetSystemProxyStatus())
+	s.AddHandler("POST", "/api/node/stop", func(ctx web.Context) {
+		dt := RequestActiveNode{}
+		err := getPostJson(ctx, &dt)
+		if err != nil {
+			return
+		}
+		ctx.Writer.Write(StopNode(dt.RemoteAddr))
 	})
 
 	s.AddHandler("POST", "/api/nodes/subscribe", func(ctx web.Context) {

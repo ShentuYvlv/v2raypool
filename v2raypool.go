@@ -751,9 +751,84 @@ func (p *ProxyPool) UpdateAfterStopAll() (okcount, errcount int, err error) {
 func (p *ProxyPool) StopAll() error {
 	var err error
 	p.IsLock = true
+
+	// 如果有激活的节点，先取消激活
+	if p.activeNode.LocalPort != 0 {
+		err = p.killActiveNode()
+		if err != nil {
+			fmt.Printf("取消激活节点时出错: %v\n", err)
+		}
+		if runtime.GOOS == "windows" {
+			if err := SetProxy(""); err == nil {
+				fmt.Println("取消系统代理成功!")
+			} else {
+				fmt.Printf("取消系统代理失败: %s\n", err)
+			}
+		}
+		p.activeNode = ProxyNode{}
+	}
+
 	_, _, err = p.UpdateAfterStopAll()
 	p.IsLock = false
 	return err
+}
+
+// StartSingleNode 启动单个节点
+func (p *ProxyPool) StartSingleNode(n ProxyNode) error {
+	if n.IsRunning() {
+		return fmt.Errorf("节点已在运行中")
+	}
+
+	c := NewV2rayApiClientV5(p.getGrpcAddr())
+	err := c.Dial()
+	if err != nil {
+		return fmt.Errorf("连接V2ray API失败: %v", err)
+	}
+	defer c.Close()
+
+	err = n.AddToPool(c)
+	if err != nil {
+		return err
+	}
+
+	// 更新节点状态
+	for i, node := range p.nodes {
+		if node.RemoteAddr == n.RemoteAddr {
+			p.nodes[i].Status = 1
+			break
+		}
+	}
+
+	return nil
+}
+
+// StopSingleNode 停止单个节点
+func (p *ProxyPool) StopSingleNode(n ProxyNode) error {
+	if !n.IsRunning() {
+		return fmt.Errorf("节点未在运行")
+	}
+
+	c := NewV2rayApiClientV5(p.getGrpcAddr())
+	err := c.Dial()
+	if err != nil {
+		return fmt.Errorf("连接V2ray API失败: %v", err)
+	}
+	defer c.Close()
+
+	err = n.Remove(c, getProxyNodeTag(n.Index))
+	if err != nil {
+		return err
+	}
+
+	// 更新节点状态
+	for i, node := range p.nodes {
+		if node.RemoteAddr == n.RemoteAddr {
+			p.nodes[i].Status = 0
+			break
+		}
+	}
+
+	return nil
 }
 
 func (p *ProxyPool) Delete(index int) error {
@@ -819,6 +894,28 @@ func (p *ProxyPool) UnActiveNode(n ProxyNode) error {
 			fmt.Printf("取消代理失败: %s\n", err)
 		}
 	}
+
+	// 同时停止对应的代理节点
+	if n.IsRunning() {
+		c := NewV2rayApiClientV5(p.getGrpcAddr())
+		if c.Dial() == nil {
+			defer c.Close()
+			removeErr := n.Remove(c, getProxyNodeTag(n.Index))
+			if removeErr != nil {
+				fmt.Printf("停止代理节点时出错: %v\n", removeErr)
+			} else {
+				// 更新节点状态
+				for i, node := range p.nodes {
+					if node.RemoteAddr == n.RemoteAddr {
+						p.nodes[i].Status = 0
+						break
+					}
+				}
+				fmt.Printf("已停止代理节点: %s\n", n.RemoteAddr)
+			}
+		}
+	}
+
 	p.activeNode = ProxyNode{}
 	return err
 }
