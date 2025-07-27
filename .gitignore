@@ -1,0 +1,5 @@
+go.sum
+*.BK
+*.exe
+*.zip
+build_assets/
