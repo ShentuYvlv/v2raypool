@@ -682,17 +682,18 @@
           //   break;
           case 'toggleRun':
             var posturl = data.is_running ? "/api/node/stop" : "/api/node/start"
-            var hintmsg = data.is_running ? '停止节点[' + data.title + ']吗？' : '启动节点[' + data.title + ']吗？'
+            // var hintmsg = data.is_running ? '停止节点[' + data.title + ']吗？' : '启动节点[' + data.title + ']吗？'
 
-            layer.confirm(hintmsg, function (index) {
+            // 直接执行，不显示确认弹窗
+            // layer.confirm(hintmsg, function (index) {
               postjson(posturl, { remote_addr: data.remote_addr }, function (dt) {
                 layer.msg(dt.msg);
                 table.reload('nodeslist');
               }, function (dt) {
                 layer.alert(dt.msg, { icon: 2, title: dt.code + "错误" });
               })
-              layer.close(index);
-            });
+              // layer.close(index);
+            // });
             break;
           case 'active':
             console.log(obj)

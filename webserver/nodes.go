@@ -144,9 +144,10 @@ func StartNode(remoteAddr string) []byte {
 
 	// 查找节点
 	var targetNode *vp.ProxyNode
-	for i, nd := range pp.GetNodes("") {
+	nodes := pp.GetNodes("")
+	for i, nd := range nodes {
 		if nd.RemoteAddr == remoteAddr {
-			targetNode = &pp.GetNodes("")[i]
+			targetNode = &nodes[i]
 			break
 		}
 	}
@@ -179,9 +180,10 @@ func StopNode(remoteAddr string) []byte {
 
 	// 查找节点
 	var targetNode *vp.ProxyNode
-	for i, nd := range pp.GetNodes("") {
+	nodes := pp.GetNodes("")
+	for i, nd := range nodes {
 		if nd.RemoteAddr == remoteAddr {
-			targetNode = &pp.GetNodes("")[i]
+			targetNode = &nodes[i]
 			break
 		}
 	}

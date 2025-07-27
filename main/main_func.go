@@ -31,10 +31,12 @@ func runServer() {
 	go vp.RunServer()
 	time.Sleep(time.Second * 1)
 	s := webserver.NewWebServer(webPort)
-	err := miniutils.StartBrowserByUrl(fmt.Sprintf(`http://127.0.0.1:%d`, webPort))
-	if err != nil {
-		fmt.Println("StartBrowserByUrl error: " + err.Error())
-	}
+	// 注释掉自动打开浏览器
+	// err := miniutils.StartBrowserByUrl(fmt.Sprintf(`http://127.0.0.1:%d`, webPort))
+	// if err != nil {
+	// 	fmt.Println("StartBrowserByUrl error: " + err.Error())
+	// }
+	fmt.Printf("Web服务器已启动，访问地址: http://127.0.0.1:%d\n", webPort)
 	s.ListenAndServe()
 }
 
